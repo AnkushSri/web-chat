@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>{{title}}</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<link href="css/style.css" rel="stylesheet">
+	<link href="css/form.css" rel="stylesheet">
+	<style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+</head>
+<body>
+	<div class="chat-area">
+		<div class="">
+            <div class="col-md-4 user-board">
+                <div class="row">
+                    User List
+                </div>
+                <div class="row user-frnd">A</div>
+                <div class="row user-frnd">B</div>
+                <div class="row user-frnd">C</div>
+                <div class="row user-frnd">D</div>
+            </div>
+            <div class="col-md-8">
+                <div class="message-board">
+                    <div class="u-msg">A</div>
+                </div>
+                <form>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input placeholder="Type your message here." class="form-control" type="text" name="message" id="message" value="" />
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <button type="button" id="send" class="form-control btn btn-default">Send</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+		</div>
+	</div>
+	
+    <div id="popup" class="popup">
+        <div class="loading">
+            <div class="logo-wrapper"></div>
+            <div class="spinning"></div>
+        </div>
+        <div class="popup_align"></div>
+    </div>
+
+	<script src="js/jquery-2.2.3.min.js"></script>
+    <script src="js/socket.io.js"></script>
+	<script>
+        console.log(title);
+    var sender_id = 1;
+    var sender_name = 'Ankush';
+    var socketOptions = {
+        'reconnection': true,
+        'reconnectionDelay': 1000,
+        'reconnectionDelayMax' : 5000,
+        'reconnectionAttempts': 5,
+        'secure' : false
+    };
+    var socket = new io.connect('127.0.0.1:8080', socketOptions);
+
+	$(document).ready(function(){
+        socket.on('chat.online.users', function (user) {
+            console.log('chat.online.users');
+            console.log(user);
+
+            $('.list-desc').removeClass('online-member');
+            $.each(user, function( index, value ) {
+                $('#online-status-' + value).addClass('online-member');
+            });
+        });
+
+        socket.on('chat.user.typing.'+sender_id, function (user) {
+            console.log('chat.user.typing');
+            console.log(user);
+        });
+
+        socket.on('chat.message.'+sender_id, function (message) {
+            console.log('chat.message');
+            console.log(message);
+
+            var unread_count = $('#msg-count-' + message.sender_id).text();
+
+            if(unread_count == ''){
+                unread_count = 1;    
+            }
+            else{
+                unread_count = parseInt(unread_count) + 1;
+            }
+            
+            $('#msg-count-' + message.sender_id).html(unread_count);
+            $('#msg-count-' + message.sender_id).show();
+
+            $('#msg-time-' + message.sender_id).html(message.created_at);
+
+            console.log('message.type');
+            console.log(message.type);
+
+            if(message.type == 'text'){
+                $('#msg-' + message.sender_id).html(message.message);
+            }
+            else{
+                $('#msg-' + message.sender_id).html('Media File.');
+            }
+
+            var msgBlock = ___htmlDecode(message.message);
+
+            readClass = message.sender_id == userObj.id ? message.seen_status : '';
+            MESSAGETEMPLATE =   '<div class="u-msg" id="chat-li-'+message.id+'">'+message.name+' ' + ___htmlDecode(message.message) +
+                '<div class="message-status" id="message-status-'+message.id+'"></div>'+
+                '<span class="chatmessage-time>'+___localTime(message.created_at)+'</span>'+
+            '</span>';
+
+            $('.message-board').append(MESSAGETEMPLATE);
+
+            if(receiver_id == message.sender_id){
+                var msgObj = {
+                    'sender_id': sender_id,
+                    'receiver_id': receiver_id,
+                    'page': '1',
+                };
+
+                socket.emit('chat.history', msgObj, function($response){});    
+            }
+        });
+
+        socket.on('chat.delete.message.'+sender_id, function (message) {
+            console.log('chat.delete.message');
+            console.log(message);
+            $('#chat-li-' + message.id).remove();
+        });
+
+        socket.on('chat.change.message.status.'+sender_id, function (message) {
+            console.log('chat.change.message.status');
+            console.log(message);
+            var status = message.status;
+            $('.message-status').html(status);
+        });
+
+        socket.emit('join', { 
+            sender_id: sender_id,
+            name: sender_name,
+        }, function($response){
+            console.log('join');
+            console.log($response);
+        });
+	});
+
+    $(document).on('click','.delete-msg-icon',function(){
+        var id = $(this).data('id');
+        var sender = $(this).data('sender');
+        var receiver = $(this).data('receiver');
+        msgObj = {
+            id: id,
+            receiver_id: receiver,
+            sender_id: sender
+        };
+        socket.emit('chat.delete', msgObj, function($response){
+            console.log('callback chat.delete');
+            console.log($response);
+
+            if($response.status == 'success'){
+                $('#chat-li-' + $response.data.id).remove();
+            }
+        });
+    });
+
+    $(document).on('click','#send',function(){
+        var dateTime = moment(new Date()).format('YYYY-MM-DD HH:mm:ss');
+        var msgObj = {
+            "name": sender_name,
+            "message": $('#message').val(),
+            "sender_id": sender_id,
+            "receiver_id": receiver_id,
+            "type": "text",
+            "created_at" : dateTime,
+            "timezone" : "Asia/Kolkata"
+        };
+
+        console.log(msgObj);
+        socket.emit('chat.send.message', msgObj, function($response){
+            console.log('callback chat.send.message');
+            console.log($response);
+            if($response.status == 'success'){
+                MESSAGETEMPLATE =   '<div class="u-msg" id="chat-li-'+$response.data.id+'">'+$response.data.name+' ' + ___htmlDecode($response.data.message) +
+                    '<div class="message-status" id="message-status-'+$response.data.id+'"></div>'+
+                    '<div class="delete-msg-icon" data-sender="'+$response.data.sender_id+'" data-receiver="'+$response.data.receiver_id+'" data-id="'+$response.data.id+'">delete</div>'+
+                    '<span class="chatmessage-time '+$response.data.status+'">'+___localTime($response.data.created_at)+'</span>'+
+                '</div>';
+                $('.message-board').append(MESSAGETEMPLATE);
+                $('#message').val('');
+            }
+        });
+    });
+
+    function ___htmlDecode(e){
+        return $('<div/>').html(e).text();
+    }
+
+    function ___localTime(date) {
+        console.log('date: ' + date);
+        var h = moment(date).format('HH');
+        var m = moment(date).format('hh:mm');
+
+        if(h > 12){
+            m = m + ' PM';
+        }
+        else{
+            m = m + ' AM';
+        }
+
+        console.log('m: ' + m + ' h: ' + h);
+        return m;
+    }
+
+    </script>
+</body>
+</html>

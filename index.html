@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Web Chat</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<link href="css/style.css" rel="stylesheet">
+	<link href="css/form.css" rel="stylesheet">
+	<style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+</head>
+<body>
+	<div class="chat-area">
+		<div class="">
+            <div class="col-md-8">
+                <form>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input placeholder="Enter your email." class="form-control" type="text" name="email" id="email" value="" />
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <button type="button" id="submit" class="form-control btn btn-default">Submit</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+		</div>
+	</div>
+	
+    <div id="popup" class="popup">
+        <div class="loading">
+            <div class="logo-wrapper"></div>
+            <div class="spinning"></div>
+        </div>
+        <div class="popup_align"></div>
+    </div>
+
+	<script src="js/jquery-2.2.3.min.js"></script>
+	<script>
+
+	$(document).ready(function(){
+        $('#submit').click(function(){
+            var email = $('#email').val();
+            $.ajax({
+                cache: false,
+                method: "POST",
+                url: '/',
+                data: {'email': email},
+            }).done(function(response){
+                console.log(response.status);
+                console.log(response.data[0].id);
+
+                if(response.status == 'success'){
+                    window.location.href = "/chatboard?user_id=" + response.data[0].id;
+                }
+
+                
+            }).always(function() {
+
+            });
+        });
+	});
+
+    </script>
+</body>
+</html>
